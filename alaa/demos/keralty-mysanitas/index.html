@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>mySanitas x Amigo, AI Agent Demo</title>
+<style>
+  @font-face{font-family:'Inter';src:url('assets/fonts/Inter-400.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Inter';src:url('assets/fonts/Inter-500.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Inter';src:url('assets/fonts/Inter-600.woff2') format('woff2');font-weight:600;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Inter';src:url('assets/fonts/Inter-700.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Inter';src:url('assets/fonts/Inter-800.woff2') format('woff2');font-weight:800;font-style:normal;font-display:swap;}
+  @font-face{font-family:'Flecha S';src:url('assets/fonts/FlechaS-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap;}
+  @font-face{font-family:'ABC Diatype Mono';src:url('assets/fonts/ABCDiatypeMono-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap;}
+
+  :root{
+    /* Amigo brand tokens (framing, stage, narration) */
+    --orange:#AA412A; --orange-h:#C25A3F;
+    --blue2:#083241;                 /* Amigo blue, data moments */
+    --warm-50:#FAF8F6; --warm-1:#F1EAE7;
+    --warm-5:#767270; --warm-6:#575452; --warm-7:#3D3937; --warm-9:#1A1817;
+    --border-subtle:#E7DED9; --border-default:#E0D7D2;
+    --ff-display:'Flecha S',Georgia,'Times New Roman',serif;
+    --ff-mono:'ABC Diatype Mono',ui-monospace,Menlo,monospace;
+    --ff-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+
+    /* Sanitas app tokens (inside the phone, their brand) */
+    --blue:#0072BC; --blue-deep:#00528F; --navy:#0A2C5C;
+    --sky:#E3F0FA; --sky2:#CFE5F6;
+    --mint:#8FE3C0; --mint-ink:#10402F;
+    --grayb:#ECEDEF; --ink:#16243B; --ink-soft:#5B6B82; --line:#E3EAEF;
+    --good:#1FA971; --warn:#E8A317; --danger:#E4513B;
+    --shadow:0 18px 50px rgba(40,30,25,.16);
+  }
+  *{box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+  html,body{margin:0;height:100%;background:#EFE7E2;font-family:var(--ff-body);}
+
+  /* ---------- 16:9 stage (light, warm) ---------- */
+  #stageWrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;}
+  #stage{
+    position:relative;width:100vw;height:56.25vw;max-height:100vh;max-width:177.78vh;
+    background:radial-gradient(120% 100% at 50% -10%,#FFFFFF 0%,var(--warm-50) 45%,var(--warm-1) 100%);
+    overflow:hidden;color:var(--warm-7);
+  }
+  #stage::before{content:"";position:absolute;width:55%;height:55%;left:-12%;top:-18%;
+    background:radial-gradient(circle, rgba(170,65,42,.07), transparent 60%);}
+  #stage::after{content:"";position:absolute;width:50%;height:50%;right:-10%;bottom:-14%;
+    background:radial-gradient(circle, rgba(8,50,65,.06), transparent 60%);}
+
+  /* ---------- Sanitas logo lockup ---------- */
+  .slogo{display:flex;align-items:center;gap:.55vw;}
+  .slogo .mark{width:2vw;height:2vw;flex:none;}
+  .slogo .wm{line-height:.95;}
+  .slogo .wm .nm{font-size:1.5vw;font-weight:800;letter-spacing:.2px;color:var(--warm-9);}
+  .slogo .wm .sub{font-size:.62vw;font-weight:500;letter-spacing:.3px;color:var(--warm-5);}
+  .slogo .wm .sub b{font-weight:800;color:var(--warm-7);}
+  /* white variant for use inside the blue app */
+  .slogo.onblue .wm .nm{color:#fff;}
+  .slogo.onblue .wm .sub{color:rgba(255,255,255,.9);}
+  .slogo.onblue .wm .sub b{color:#fff;}
+
+  /* co-brand lockup (Sanitas x Amigo) */
+  .cobrand{display:flex;align-items:center;gap:1.1vw;}
+  .cobrand .x{font-size:1.3vw;color:var(--warm-5);font-weight:400;}
+  .cobrand .amigologo{height:1.7vw;width:auto;}
+
+  /* ---------- top brand bar ---------- */
+  .topbar{position:absolute;top:3.2%;left:5%;right:5%;display:flex;align-items:center;justify-content:space-between;z-index:40;}
+  .cobadge{font-family:var(--ff-mono);font-size:.78vw;letter-spacing:.12em;text-transform:uppercase;color:var(--warm-6);}
+  .cobadge b{color:var(--orange);font-weight:400;}
+
+  /* ---------- scene tag ---------- */
+  .scene-tag{position:absolute;top:8%;left:5%;z-index:40;display:flex;align-items:center;gap:.55vw;
+    background:var(--warm-1);border:1px solid var(--border-subtle);
+    padding:.4vw .8vw;border-radius:999px;font-family:var(--ff-mono);font-size:.62vw;letter-spacing:.1em;text-transform:uppercase;color:var(--warm-6);
+    opacity:0;transform:translateY(-6px);transition:.5s;}
+  .scene-tag.show{opacity:1;transform:none;}
+  .scene-tag .pip{width:.55vw;height:.55vw;border-radius:50%;background:var(--orange);}
+
+  /* ---------- caption / lower third ---------- */
+  .caption{position:absolute;bottom:5%;left:50%;transform:translateX(-50%) translateY(14px);
+    width:86%;text-align:center;z-index:45;opacity:0;transition:.55s cubic-bezier(.2,.8,.2,1);}
+  .caption.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .caption .k{display:inline-block;font-family:var(--ff-mono);font-size:.8vw;letter-spacing:.18em;text-transform:uppercase;color:var(--orange);margin-bottom:.55vw;}
+  .caption .t{font-size:1.45vw;line-height:1.34;font-weight:500;color:var(--warm-9);}
+  .caption .t b{color:var(--orange);font-weight:600;}
+
+  /* disable transitions while scrubbing so seeks are instant */
+  .seeking *{transition:none!important;}
+  /* scrubber (seek / rewind), always visible and above the cards */
+  .scrub{position:absolute;left:0;right:0;bottom:0;height:1.1vw;z-index:85;cursor:pointer;}
+  .scrub .track{position:absolute;left:0;right:0;bottom:0;height:.34vw;background:rgba(40,30,25,.16);}
+  .scrub .fill{position:absolute;left:0;bottom:0;height:.34vw;width:0;background:var(--orange);}
+  .scrub .handle{position:absolute;bottom:-.16vw;left:0;width:.65vw;height:.65vw;border-radius:50%;background:var(--orange);transform:translateX(-50%);box-shadow:0 1px 5px rgba(0,0,0,.3);}
+  .scrub:hover .track,.scrub:hover .fill{height:.5vw;}
+  .playbtn{position:absolute;bottom:1.5vw;left:2.5%;z-index:86;font-family:var(--ff-body);font-size:.85vw;font-weight:700;
+    color:var(--warm-7);background:#fff;border:1px solid var(--border-subtle);border-radius:999px;padding:.5vw 1.3vw;cursor:pointer;
+    box-shadow:0 4px 14px rgba(40,30,25,.16);}
+  .playbtn:hover{background:var(--warm-1);}
+
+  /* ---------- PHONE (Scene 1, Sanitas brand) ---------- */
+  .phone{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%) scale(.96);z-index:30;
+    width:18.8vw;height:40vw;background:#0a0a0a;border-radius:2.6vw;padding:.5vw;box-shadow:var(--shadow);
+    opacity:0;transition:opacity .6s, transform .6s;}
+  .phone.in{opacity:1;transform:translate(-50%,-50%) scale(1);}
+  .screen{position:relative;width:100%;height:100%;background:var(--blue);border-radius:2.1vw;overflow:hidden;display:flex;flex-direction:column;}
+  .island{position:absolute;top:1vw;left:50%;transform:translateX(-50%);width:32%;height:1.5vw;background:#000;border-radius:999px;z-index:6;}
+  .statusbar{display:flex;justify-content:space-between;align-items:center;padding:.7vw 1.5vw .2vw;font-size:.78vw;font-weight:700;color:#fff;z-index:5;}
+  .statusbar .bat{background:#FFD23F;color:#000;border-radius:.3vw;padding:0 .35vw;font-size:.68vw;}
+
+  /* HOME (radial, no icons) */
+  #homeView{display:flex;flex-direction:column;flex:1;background:linear-gradient(180deg,#0a4f8c,#0072BC 40%,#0072BC);}
+  .home-logo{display:flex;justify-content:center;padding:1.4vw 0 .4vw;}
+  .home-logo .slogo .mark{width:2.3vw;height:2.3vw;}
+  .home-logo .slogo .wm .nm{font-size:1.7vw;}
+  .radial{position:relative;flex:1;margin:1vw;}
+  .radial .ring{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);width:62%;height:0;padding-bottom:62%;
+    border:1px dashed rgba(255,255,255,.45);border-radius:50%;}
+  .radial .core{position:absolute;top:48%;left:50%;transform:translate(-50%,-50%);width:42%;height:0;padding-bottom:42%;
+    border-radius:50%;background:rgba(255,255,255,.10);}
+  .rnode{position:absolute;display:flex;flex-direction:column;align-items:center;color:#fff;width:36%;text-align:center;}
+  .rnode .lb{font-size:.92vw;font-weight:600;}
+  .rnode.top{top:14%;left:50%;transform:translateX(-50%);}
+  .rnode.left{top:47%;left:1%;transform:translateY(-50%);}
+  .rnode.right{top:47%;right:1%;transform:translateY(-50%);}
+
+  /* Ask Sanitas launcher */
+  .ai-launch{margin:0 1vw 1.4vw;background:#fff;border-radius:1.2vw;padding:1vw;display:flex;align-items:center;gap:.85vw;box-shadow:0 12px 26px rgba(0,40,80,.28);}
+  .ai-launch .orb{width:2.5vw;height:2.5vw;flex:none;border-radius:50%;background:conic-gradient(from 0deg,var(--blue),#36b6e6,#8FE3C0,var(--blue));animation:spin 6s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .ai-launch .tx b{font-size:.98vw;color:var(--navy);}
+  .ai-launch .tx div{font-size:.72vw;color:var(--ink-soft);}
+
+  /* ONBOARDING CAROUSEL (the first thing users see) */
+  .onboard{position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;
+    background:linear-gradient(180deg,#0a4f8c 0%,#0072BC 55%,#0a4f8c 100%);
+    transition:opacity .5s, transform .5s;}
+  .onboard.out{opacity:0;transform:translateY(-6%);pointer-events:none;}
+  .ob-logo{display:flex;justify-content:center;padding:3vw 0 .4vw;}
+  .ob-logo .slogo .mark{width:2.2vw;height:2.2vw;}
+  .ob-logo .slogo .wm .nm{font-size:1.6vw;}
+  .ob-hero{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:1.4vw;}
+  .ob-hero .w1{color:#fff;font-size:1.65vw;font-weight:600;line-height:1.12;}
+  .ob-hero .w2{color:#fff;font-size:2.5vw;font-weight:800;line-height:1.04;margin-top:.2vw;text-shadow:0 2px 10px rgba(0,0,0,.18);}
+  .ob-sheet{background:#fff;border-radius:1.6vw 1.6vw 0 0;padding:1.2vw 1.3vw 1.4vw;box-shadow:0 -8px 24px rgba(0,40,80,.14);}
+  .ob-dots{display:flex;gap:.4vw;margin-bottom:1vw;}
+  .ob-dot{width:.5vw;height:.5vw;border-radius:999px;background:#CBD5E0;transition:.3s;}
+  .ob-dot.active{width:1.5vw;background:var(--navy);}
+  .ob-title{font-size:1.4vw;font-weight:800;color:var(--navy);line-height:1.12;margin-bottom:.5vw;}
+  .ob-body{font-size:.82vw;color:#5A6B7B;line-height:1.5;min-height:3.6vw;}
+  .ob-nav{display:flex;align-items:center;justify-content:space-between;margin-top:1.1vw;min-height:2.4vw;}
+  .ob-skip{font-size:.85vw;font-weight:700;color:var(--blue);text-decoration:underline;}
+  .ob-arrows{display:flex;gap:.6vw;}
+  .ob-arrow{width:2.5vw;height:2.5vw;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:transform .15s;}
+  .ob-arrow.back{background:#D6E8F6;}
+  .ob-arrow.next{background:var(--blue);box-shadow:0 6px 14px rgba(0,114,188,.3);}
+  .ob-arrow .chev{width:.62vw;height:.62vw;border-right:.17vw solid #fff;border-bottom:.17vw solid #fff;display:block;}
+  .ob-arrow.back .chev{border-color:var(--blue);}
+  .ob-arrow .chev.r{transform:rotate(-45deg);margin-left:-.12vw;}
+  .ob-arrow .chev.l{transform:rotate(135deg);margin-right:-.12vw;}
+  .ob-cta{background:var(--blue);color:#fff;font-size:.85vw;font-weight:800;padding:.7vw 1.5vw;border-radius:999px;transition:transform .15s;}
+
+  /* CHAT (bubbles floating on blue, matches the app) */
+  .chat{position:absolute;inset:0;background:linear-gradient(180deg,#0a4f8c 0%,#0072BC 60%,#0072BC 100%);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .5s cubic-bezier(.3,.8,.2,1);}
+  .chat.show{transform:none;}
+  .chat-head{background:linear-gradient(120deg,#0a4f8c,var(--blue));color:#fff;padding:2.2vw 1.1vw .9vw;display:flex;align-items:center;gap:.7vw;}
+  .chat-head .av{width:2.2vw;height:2.2vw;flex:none;border-radius:50%;background:conic-gradient(from 0deg,var(--blue),#36b6e6,#8FE3C0,var(--blue));}
+  .chat-head .nm{font-size:.95vw;font-weight:800;}
+  .chat-head .st{font-size:.66vw;opacity:.9;display:flex;align-items:center;gap:.35vw;}
+  .chat-head .st .dot{width:.45vw;height:.45vw;border-radius:50%;background:#5fe0a6;display:inline-block;}
+  .chat-scroll{flex:1;overflow:hidden;padding:1vw;display:flex;flex-direction:column;gap:.65vw;}
+  .msg{max-width:82%;font-size:.82vw;line-height:1.4;padding:.7vw .9vw;border-radius:1vw;opacity:0;transform:translateY(10px);animation:pop .4s forwards;}
+  @keyframes pop{to{opacity:1;transform:none;}}
+  .msg.ai{align-self:flex-start;background:#fff;color:var(--ink);border-bottom-left-radius:.3vw;box-shadow:0 6px 16px rgba(0,30,60,.18);}
+  .msg.me{align-self:flex-end;background:var(--mint);color:var(--mint-ink);border-bottom-right-radius:.3vw;box-shadow:0 6px 16px rgba(0,30,60,.16);}
+  .typing{align-self:flex-start;background:#fff;border-radius:1vw;padding:.8vw 1vw;display:flex;gap:.3vw;box-shadow:0 6px 16px rgba(0,30,60,.18);}
+  .typing span{width:.45vw;height:.45vw;border-radius:50%;background:#9fb3c0;animation:bd 1s infinite;}
+  .typing span:nth-child(2){animation-delay:.15s;} .typing span:nth-child(3){animation-delay:.3s;}
+  @keyframes bd{0%,60%,100%{opacity:.3;transform:translateY(0);}30%{opacity:1;transform:translateY(-3px);}}
+
+  .card{align-self:flex-start;width:95%;background:#fff;border-radius:1vw;padding:.9vw;box-shadow:0 8px 20px rgba(10,44,92,.12);opacity:0;transform:translateY(10px);animation:pop .45s forwards;border:1px solid var(--line);}
+  .card .ch{display:flex;align-items:center;gap:.5vw;font-size:.8vw;font-weight:800;color:var(--navy);margin-bottom:.6vw;}
+  .card .ch .tg{margin-left:auto;font-size:.6vw;font-weight:700;padding:.2vw .5vw;border-radius:999px;}
+  .lab-row{display:grid;grid-template-columns:1fr auto auto;gap:.5vw;align-items:center;font-size:.7vw;padding:.45vw 0;border-bottom:1px dashed var(--line);}
+  .lab-row:last-child{border:0;}
+  .lab-row .nm{color:var(--ink-soft);line-height:1.2;}
+  .lab-row .val{text-align:right;font-weight:800;color:var(--ink);font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .lab-row .pill{justify-self:start;margin-left:0;white-space:nowrap;font-size:.55vw;padding:.16vw .5vw;}
+  .pill{font-size:.6vw;font-weight:800;padding:.12vw .5vw;border-radius:999px;margin-left:.4vw;display:inline-flex;align-items:center;line-height:1;}
+  .pill.ok{background:#E5F6EE;color:var(--good);}
+  .pill.hi{background:#FBE9D8;color:#C77B17;}
+
+  .slots{display:flex;gap:.5vw;margin-top:.5vw;}
+  .slot{flex:1;text-align:center;border:1px solid var(--blue);color:var(--blue);border-radius:.7vw;padding:.5vw .2vw;font-size:.7vw;font-weight:800;}
+  .slot.sel{background:var(--blue);color:#fff;}
+  .confirm-card{align-self:flex-start;width:90%;background:linear-gradient(120deg,var(--sky),#fff);border:1px solid var(--blue);border-radius:1vw;padding:.9vw;opacity:0;animation:pop .45s forwards;}
+  .confirm-card .big{font-size:.9vw;font-weight:800;color:var(--navy);}
+  .confirm-card .meta{font-size:.72vw;color:var(--ink-soft);margin-top:.3vw;line-height:1.5;}
+
+  .safety-card{align-self:flex-start;width:92%;background:#FDEDEA;border:1.5px solid var(--danger);border-radius:1vw;padding:.9vw;opacity:0;animation:pop .45s forwards;}
+  .safety-card .hd{font-size:.85vw;font-weight:800;color:var(--danger);}
+  .safety-card .bd{font-size:.74vw;color:var(--ink);margin-top:.4vw;line-height:1.45;}
+  .handoff{display:flex;align-items:center;gap:.6vw;margin-top:.7vw;background:#fff;border-radius:.8vw;padding:.6vw;border:1px solid var(--line);}
+  .handoff .av{width:1.9vw;height:1.9vw;border-radius:50%;background:var(--sky2);display:flex;align-items:center;justify-content:center;font-size:.72vw;font-weight:800;color:var(--blue-deep);}
+  .handoff .nm{font-size:.74vw;font-weight:800;color:var(--navy);}
+  .handoff .rl{font-size:.62vw;color:var(--ink-soft);}
+  .handoff .live{margin-left:auto;font-size:.58vw;font-weight:800;color:#fff;background:var(--good);padding:.2vw .5vw;border-radius:999px;display:inline-flex;align-items:center;line-height:1;}
+
+  .compose{display:flex;align-items:center;gap:.6vw;padding:.7vw 1vw;background:transparent;border-top:1px solid rgba(255,255,255,.2);}
+  .compose .inp{flex:1;background:#fff;border-radius:999px;padding:.6vw 1vw;font-size:.76vw;color:var(--ink-soft);min-height:2vw;}
+  .compose .send{font-size:.78vw;font-weight:800;color:#fff;padding:0 .4vw;}
+
+  /* info / ROI panel (light cards) */
+  .infopanel{position:absolute;right:5%;top:50%;transform:translateY(-50%);width:23%;z-index:35;display:flex;flex-direction:column;gap:1vw;}
+  .infopanel.left{left:5%;right:auto;}
+  .ip-card{background:#fff;border:1px solid var(--border-subtle);border-radius:1vw;padding:1.1vw 1.2vw;box-shadow:0 8px 22px rgba(40,30,25,.07);opacity:0;transform:translateX(20px);transition:.55s;}
+  .ip-card.show{opacity:1;transform:none;}
+  .ip-card .k{font-family:var(--ff-mono);font-size:.72vw;letter-spacing:.14em;text-transform:uppercase;color:var(--orange);margin-bottom:.5vw;}
+  .ip-card .v{font-size:1.02vw;line-height:1.45;font-weight:500;color:var(--warm-7);}
+  .ip-card .v b{color:var(--warm-9);font-weight:700;}
+
+  /* ---------- SCENE 2 : ED SUPER SCRIBE ---------- */
+  .ed{position:absolute;inset:0;display:flex;align-items:flex-start;justify-content:center;z-index:25;opacity:0;transition:opacity .6s;pointer-events:none;padding-top:9vw;}
+  .ed.in{opacity:1;}
+  .ed-frame{width:74%;height:64%;background:#F3F8F9;border-radius:1.4vw;box-shadow:var(--shadow);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);}
+  .ed-top{display:flex;align-items:center;gap:.8vw;padding:1vw 1.4vw;background:linear-gradient(120deg,#0a4f8c,var(--blue));color:#fff;}
+  .ed-top .orb{width:1.9vw;height:1.9vw;flex:none;border-radius:50%;background:conic-gradient(from 0deg,var(--blue),#36b6e6,#8FE3C0,var(--blue));animation:spin 6s linear infinite;}
+  .ed-top .ti{font-size:1vw;font-weight:800;}
+  .ed-top .sub{font-size:.72vw;opacity:.9;}
+  .ed-top .rec{margin-left:auto;display:flex;align-items:center;gap:.45vw;font-family:var(--ff-mono);font-size:.7vw;letter-spacing:.1em;color:#ffd0d0;}
+  .ed-top .rec .d{width:.55vw;height:.55vw;border-radius:50%;background:#ff5a5a;animation:blink 1.2s infinite;}
+  @keyframes blink{50%{opacity:.25;}}
+  .ed-cols{flex:1;display:grid;grid-template-columns:1fr 1.05fr;overflow:hidden;}
+  .ed-col{padding:1.1vw 1.3vw;overflow:hidden;display:flex;flex-direction:column;}
+  .ed-col.left{background:#fff;border-right:1px solid var(--line);}
+  .ed-col.right{background:#F3F8F9;}
+  #edTranscript,#edNote{flex:1;min-height:0;overflow-y:auto;}
+  #edTranscript::-webkit-scrollbar,#edNote::-webkit-scrollbar{width:0;height:0;}
+  .ed-h{font-family:var(--ff-mono);font-size:.72vw;letter-spacing:.12em;text-transform:uppercase;color:var(--blue);margin-bottom:.8vw;}
+  .tline{font-size:.82vw;line-height:1.5;margin-bottom:.7vw;opacity:0;transform:translateY(8px);animation:pop .4s forwards;}
+  .tline .who{font-weight:800;font-size:.64vw;letter-spacing:.05em;display:block;text-transform:uppercase;margin-bottom:.1vw;}
+  .tline.doc .who{color:var(--blue);} .tline.pt .who{color:var(--good);}
+  .tline .tx{color:var(--ink);}
+  .nfield{background:#fff;border:1px solid var(--line);border-radius:.7vw;padding:.7vw .9vw;margin-bottom:.7vw;opacity:0;transform:translateY(8px);animation:pop .4s forwards;box-shadow:0 2px 8px rgba(10,44,92,.05);}
+  .nfield .lb{font-family:var(--ff-mono);font-size:.6vw;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.25vw;}
+  .nfield .vl{font-size:.8vw;color:var(--ink);line-height:1.4;}
+  .ed-alert{border-radius:.8vw;padding:.8vw .95vw;margin-bottom:.7vw;opacity:0;transform:translateY(8px);animation:pop .45s forwards;}
+  .ed-alert .hd{font-size:.8vw;font-weight:800;}
+  .ed-alert .bd{font-size:.74vw;line-height:1.45;margin-top:.35vw;}
+  .ed-alert.prior{background:#FDF4E3;border:1px solid var(--warn);}
+  .ed-alert.prior .hd{color:#B9831A;} .ed-alert.prior .bd{color:var(--ink);}
+  .ed-alert.proto{background:var(--sky);border:1px solid var(--blue);}
+  .ed-alert.proto .hd{color:var(--blue-deep);} .ed-alert.proto .bd{color:var(--ink);}
+  .ed-alert.push{background:#E5F6EE;border:1px solid var(--good);}
+  .ed-alert.push .hd{color:#12805a;} .ed-alert.push .bd{color:var(--ink);}
+
+  /* ---------- TITLE / OUTRO CARDS (Amigo brand, light) ---------- */
+  .card-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:70;
+    text-align:center;opacity:0;transition:opacity .7s;pointer-events:none;
+    background:radial-gradient(130% 120% at 50% 18%,#FFFFFF 0%,var(--warm-50) 50%,var(--warm-1) 100%);}
+  .card-screen.in{opacity:1;}
+  .card-screen .ey{font-family:var(--ff-mono);font-size:.92vw;letter-spacing:.22em;text-transform:uppercase;color:var(--orange);margin-bottom:1.6vw;}
+  .card-screen h1{font-family:var(--ff-display);font-size:3.6vw;line-height:1.1;margin:0 0 1.6vw;font-weight:500;color:var(--warm-9);max-width:74%;}
+  .card-screen h1 b{color:var(--orange);font-weight:500;}
+  .card-screen p{font-size:1.2vw;color:var(--warm-7);max-width:54%;line-height:1.55;margin:0;font-weight:400;}
+  .cobrand.center{margin-top:2.8vw;}
+  .bullets{display:flex;gap:2.4vw;margin-top:2.6vw;}
+  .bullets .b{display:flex;flex-direction:column;align-items:center;gap:.5vw;max-width:12vw;}
+  .bullets .b .n{font-family:var(--ff-display);font-size:2.4vw;font-weight:500;color:var(--blue2);line-height:1;}
+  .bullets .b .l{font-size:.85vw;color:var(--warm-5);line-height:1.4;}
+
+  /* start overlay (light, Amigo CTA) */
+  #startOverlay{position:absolute;inset:0;z-index:90;background:rgba(250,248,246,.9);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1.4vw;cursor:pointer;}
+  #startOverlay .lbl{font-family:var(--ff-display);font-weight:500;font-size:2vw;color:var(--warm-9);}
+  #startOverlay .play{font-family:var(--ff-body);font-weight:700;font-size:1vw;color:#fff;background:var(--orange);
+    border-radius:999px;padding:.9vw 2.2vw;box-shadow:0 12px 30px rgba(170,65,42,.32);transition:.2s;}
+  #startOverlay .play:hover{background:var(--orange-h);transform:translateY(-1px);}
+  #startOverlay .sub{font-family:var(--ff-mono);font-size:.78vw;letter-spacing:.12em;text-transform:uppercase;color:var(--warm-5);}
+</style>
+</head>
+<body>
+<div id="stageWrap">
+  <div id="stage">
+
+    <!-- brand bar -->
+    <div class="topbar">
+      <div class="slogo">
+        <svg class="mark" viewBox="0 0 100 100"><g transform="translate(50,50)">
+          <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#2BA9E0" transform="rotate(18)"/>
+          <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#6CC04A" transform="rotate(108)"/>
+          <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#00A6C0" transform="rotate(198)"/>
+          <ellipse cx="0" cy="-23" rx="12" ry="22" fill="#0072BC" transform="rotate(288)"/>
+        </g></svg>
+        <div class="wm"><div class="nm">Sanitas</div><div class="sub">A <b>Keralty</b> Company</div></div>
+      </div>
+      <div class="cobadge">AI agent <b>powered by Amigo</b></div>
+    </div>
+
+    <div class="scene-tag" id="sceneTag"><span class="pip"></span><span id="sceneTagTx">Scene</span></div>
+
+    <!-- ===== PHONE (Scene 1) ===== -->
+    <div class="phone" id="phone">
+      <div class="screen">
+        <div class="island"></div>
+        <div class="statusbar"><span>9:06</span><span>5G&nbsp;&nbsp;<span class="bat">90</span></span></div>
+
+        <!-- ONBOARDING CAROUSEL -->
+        <div class="onboard" id="onboardView">
+          <div class="ob-logo">
+            <div class="slogo onblue">
+              <svg class="mark" viewBox="0 0 100 100"><g transform="translate(50,50)">
+                <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#2BA9E0" transform="rotate(18)"/>
+                <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#6CC04A" transform="rotate(108)"/>
+                <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#00A6C0" transform="rotate(198)"/>
+                <ellipse cx="0" cy="-23" rx="12" ry="22" fill="#0072BC" transform="rotate(288)"/>
+              </g></svg>
+              <div class="wm"><div class="nm">Sanitas</div><div class="sub">A <b>Keralty</b> Company</div></div>
+            </div>
+          </div>
+          <div class="ob-hero">
+            <div class="w1">Welcome to your</div>
+            <div class="w2">new care experience!</div>
+          </div>
+          <div class="ob-sheet">
+            <div class="ob-dots" id="obDots">
+              <span class="ob-dot active"></span><span class="ob-dot"></span><span class="ob-dot"></span><span class="ob-dot"></span><span class="ob-dot"></span>
+            </div>
+            <div class="ob-title" id="obTitle">Always on. Always with you.</div>
+            <div class="ob-body" id="obBody">Connect to our doctors and care teams 24/7. On the phone, video, chat or in person at your local Sanitas Medical Center.</div>
+            <div class="ob-nav">
+              <span class="ob-skip" id="obSkip">Skip</span>
+              <div class="ob-arrows" id="obArrows">
+                <div class="ob-arrow back"><span class="chev l"></span></div>
+                <div class="ob-arrow next" id="obNextBtn"><span class="chev r"></span></div>
+              </div>
+              <span class="ob-cta" id="obCta" style="display:none">Let's get started</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- HOME -->
+        <div id="homeView">
+          <div class="home-logo">
+            <div class="slogo onblue">
+              <svg class="mark" viewBox="0 0 100 100"><g transform="translate(50,50)">
+                <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#2BA9E0" transform="rotate(18)"/>
+                <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#6CC04A" transform="rotate(108)"/>
+                <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#00A6C0" transform="rotate(198)"/>
+                <ellipse cx="0" cy="-23" rx="12" ry="22" fill="#0072BC" transform="rotate(288)"/>
+              </g></svg>
+              <div class="wm"><div class="nm">Sanitas</div><div class="sub">A <b>Keralty</b> Company</div></div>
+            </div>
+          </div>
+          <div class="radial">
+            <div class="ring"></div>
+            <div class="core"></div>
+            <div class="rnode top"><div class="lb">Get care now</div></div>
+            <div class="rnode left"><div class="lb">My health</div></div>
+            <div class="rnode right"><div class="lb">Appointments</div></div>
+          </div>
+          <div class="ai-launch" id="aiLaunch">
+            <div class="orb"></div>
+            <div class="tx"><b>Ask Sanitas</b><div>Your 24/7 AI health assistant</div></div>
+          </div>
+        </div>
+
+        <!-- CHAT -->
+        <div class="chat" id="chatView">
+          <div class="chat-head">
+            <div class="av"></div>
+            <div><div class="nm">Sanitas Assistant</div><div class="st"><span class="dot"></span> Online, secure (HIPAA)</div></div>
+          </div>
+          <div class="chat-scroll" id="chatScroll"></div>
+          <div class="compose">
+            <div class="inp" id="composeInp">Message</div>
+            <div class="send">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="infopanel" id="infoPanel"></div>
+
+    <!-- ===== ED SUPER SCRIBE (Scene 2) ===== -->
+    <div class="ed" id="edScene">
+      <div class="ed-frame">
+        <div class="ed-top">
+          <div class="orb"></div>
+          <div><div class="ti">Super Scribe, bedside AI</div><div class="sub">Emergency Dept &nbsp;&middot;&nbsp; Room 4 &nbsp;&middot;&nbsp; Patient: J. Morales, 58M</div></div>
+          <div class="rec"><span class="d"></span> LISTENING</div>
+        </div>
+        <div class="ed-cols">
+          <div class="ed-col left">
+            <div class="ed-h">Ambient conversation</div>
+            <div id="edTranscript"></div>
+          </div>
+          <div class="ed-col right">
+            <div class="ed-h">AI-structured note &nbsp;&middot;&nbsp; live</div>
+            <div id="edNote"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- caption -->
+    <div class="caption" id="caption">
+      <span class="k" id="capK"></span>
+      <div class="t" id="capT"></div>
+    </div>
+
+    <!-- title / outro -->
+    <div class="card-screen" id="cardScreen"></div>
+
+    <!-- start overlay -->
+    <div id="startOverlay">
+      <div class="lbl">mySanitas with an Amigo AI agent</div>
+      <div class="play">Play demo</div>
+      <div class="sub">Best viewed full screen</div>
+    </div>
+
+    <button class="playbtn" id="playBtn">Pause</button>
+    <div class="scrub" id="scrub">
+      <div class="track"></div>
+      <div class="fill" id="fill"></div>
+      <div class="handle" id="handle"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const COBRAND = `<div class="cobrand center">
+  <span class="slogo"><svg class="mark" viewBox="0 0 100 100"><g transform="translate(50,50)">
+    <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#2BA9E0" transform="rotate(18)"/>
+    <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#6CC04A" transform="rotate(108)"/>
+    <ellipse cx="0" cy="-23" rx="13" ry="25" fill="#00A6C0" transform="rotate(198)"/>
+    <ellipse cx="0" cy="-23" rx="12" ry="22" fill="#0072BC" transform="rotate(288)"/>
+  </g></svg><span class="wm"><span class="nm">Sanitas</span></span></span>
+  <span class="x">&times;</span>
+  <img class="amigologo" src="assets/amigo-logo.svg" alt="Amigo">
+</div>`;
+
+const el = id => document.getElementById(id);
+
+// ---------- DOM helpers (pure state setters, no awaits) ----------
+function setCaption(k,t){ el('capK').textContent=k; el('capT').innerHTML=t; el('caption').classList.add('show'); }
+function hideCaption(){ el('caption').classList.remove('show'); }
+function sceneTag(txt){ el('sceneTagTx').textContent=txt; el('sceneTag').classList.add('show'); }
+function hideSceneTag(){ el('sceneTag').classList.remove('show'); }
+function addTyping(){ const s=el('chatScroll'); const d=document.createElement('div'); d.className='typing'; d.id='typing'; d.innerHTML='<span></span><span></span><span></span>'; s.appendChild(d); scrollChat(); }
+function rmTyping(){ const t=el('typing'); if(t) t.remove(); }
+function addMsg(who,html){ const s=el('chatScroll'); const d=document.createElement('div'); d.className='msg '+who; d.innerHTML=html; s.appendChild(d); scrollChat(); }
+function addNode(html){ const s=el('chatScroll'); const w=document.createElement('div'); w.innerHTML=html.trim(); s.appendChild(w.firstChild); scrollChat(); }
+function scrollChat(){ const s=el('chatScroll'); s.scrollTop=s.scrollHeight; }
+function setCompose(txt){ el('composeInp').textContent=txt; el('composeInp').style.color = txt==='Message'?'var(--ink-soft)':'var(--ink)'; }
+function infoCard(k,v){ const c=document.createElement('div'); c.className='ip-card'; c.innerHTML='<div class="k">'+k+'</div><div class="v">'+v+'</div>'; el('infoPanel').appendChild(c); requestAnimationFrame(()=>requestAnimationFrame(()=>c.classList.add('show'))); }
+function clearInfo(side){ el('infoPanel').innerHTML=''; el('infoPanel').className='infopanel'+(side?' '+side:''); }
+function showCard(html){ el('cardScreen').innerHTML=html; el('cardScreen').classList.add('in'); }
+function hideCard(){ el('cardScreen').classList.remove('in'); }
+// ED builders (auto-scroll so nothing is cut off)
+function tline(cls,who,tx){ const d=document.createElement('div'); d.className='tline '+cls; d.innerHTML='<span class="who">'+who+'</span><span class="tx">'+tx+'</span>'; el('edTranscript').appendChild(d); edScroll(); }
+function nfield(lb,vl){ const d=document.createElement('div'); d.className='nfield'; d.innerHTML='<div class="lb">'+lb+'</div><div class="vl">'+vl+'</div>'; el('edNote').appendChild(d); edScroll(); }
+function edAlert(cls,hd,bd){ const d=document.createElement('div'); d.className='ed-alert '+cls; d.innerHTML='<div class="hd">'+hd+'</div><div class="bd">'+bd+'</div>'; el('edNote').appendChild(d); edScroll(); }
+function edScroll(){ el('edNote').scrollTop=el('edNote').scrollHeight; el('edTranscript').scrollTop=el('edTranscript').scrollHeight; }
+// onboarding
+function obSet(i,t,b){ document.querySelectorAll('#obDots .ob-dot').forEach((d,ix)=>d.classList.toggle('active',ix===i)); el('obTitle').textContent=t; el('obBody').textContent=b; }
+function obArrows(){ el('obArrows').style.display='flex'; el('obCta').style.display='none'; el('obSkip').textContent='Skip'; }
+function obCtaShow(){ el('obArrows').style.display='none'; el('obCta').style.display=''; el('obSkip').textContent='Back'; }
+
+const OB_LEAD = 'Connect to our doctors and care teams 24/7. On the phone, video, chat or in person at your local Sanitas Medical Center.';
+
+function resetStage(){
+  el('chatScroll').innerHTML=''; el('edTranscript').innerHTML=''; el('edNote').innerHTML='';
+  el('chatView').classList.remove('show'); el('phone').classList.remove('in'); el('edScene').classList.remove('in');
+  el('cardScreen').classList.remove('in'); el('cardScreen').innerHTML='';
+  hideCaption(); hideSceneTag(); clearInfo(); setCompose('Message');
+  el('onboardView').classList.remove('out'); obArrows(); obSet(0,'Always on. Always with you.',OB_LEAD);
+}
+
+// ---------- cue timeline ----------
+let cues=[], TB=0, TOTAL=0;
+function cue(fn){ cues.push({t:TB, fn}); }
+function gap(ms){ TB+=ms; }
+
+function build(){
+  cues=[]; TB=0;
+  cue(()=> showCard(`<div class="ey">Keralty and Amigo</div><h1>One AI agent.<br><b>Every patient touchpoint.</b></h1><p>How an Amigo AI agent works inside the mySanitas app, and at the hospital bedside.</p>`+COBRAND)); gap(4200);
+  cue(()=> hideCard()); gap(600);
+
+  // ===== SCENE 1 =====
+  cue(()=>{ sceneTag('Patient experience'); clearInfo('left'); el('phone').classList.add('in'); }); gap(900);
+  cue(()=> setCaption('What patients see first','The familiar mySanitas onboarding, now with an Amigo assistant built in.'));
+  cue(()=>{ el('onboardView').classList.remove('out'); obArrows(); obSet(0,'Always on. Always with you.',OB_LEAD); }); gap(2600);
+  cue(()=> obSet(1,'Care services like never before','From anywhere, anytime. Care Now, Appointments and your health record, all in one place.')); gap(2100);
+  cue(()=>{ obSet(2,'View your health record','Medications, labs, immunization history, visit summaries and more.'); obCtaShow(); }); gap(2200);
+  cue(()=> el('onboardView').classList.add('out')); gap(600);
+  cue(()=> setCaption('The single front door','María opens mySanitas. One assistant for <b>everything</b>: care, scheduling, labs and triage.')); gap(2400);
+  cue(()=> el('chatView').classList.add('show')); gap(700);
+
+  // memory
+  cue(()=> setCaption('Personalized memory','The agent <b>remembers every patient</b>, picking up exactly where they left off.'));
+  cue(()=> addTyping()); gap(1000);
+  cue(()=>{ rmTyping(); addMsg('ai','Hi María, welcome back. Last time we talked about keeping an eye on your <b>blood pressure</b>. How have you been feeling this week?'); }); gap(2800);
+  cue(()=> infoCard('Why it matters','<b>One agent, personalized at scale.</b> Individual memory per patient, not a generic bot.')); gap(1400);
+
+  // labs
+  cue(()=> setCompose('Good! I got a notice my lab results are ready. What do they say?')); gap(1500);
+  cue(()=>{ setCompose('Message'); addMsg('me','Good! I got a notice my lab results are ready. What do they say?'); }); gap(800);
+  cue(()=> setCaption('Lab results, explained','Pulls results from the EMR and <b>explains them in plain language</b>.'));
+  cue(()=> addTyping()); gap(1000);
+  cue(()=>{ rmTyping(); addMsg('ai','Your results from <b>June 22</b> just posted. Here is the summary:'); }); gap(700);
+  cue(()=> addNode(`<div class="card"><div class="ch">Lab results, lipid panel <span class="tg" style="background:var(--sky);color:var(--blue)">From eClinicalWorks</span></div><div class="lab-row"><span class="nm">Total cholesterol</span><span class="val">214 mg/dL</span><span class="pill hi">Slightly high</span></div><div class="lab-row"><span class="nm">HDL (good)</span><span class="val">58 mg/dL</span><span class="pill ok">Normal</span></div><div class="lab-row"><span class="nm">LDL (bad)</span><span class="val">138 mg/dL</span><span class="pill hi">Slightly high</span></div><div class="lab-row"><span class="nm">Glucose</span><span class="val">92 mg/dL</span><span class="pill ok">Normal</span></div></div>`)); gap(2600);
+  cue(()=> addTyping()); gap(1200);
+  cue(()=>{ rmTyping(); addMsg('ai','In plain terms: most numbers look good. Your <b>cholesterol is a little above target</b>, usually managed with diet and a follow-up. Nothing urgent. Want me to book a quick visit with your primary care provider to review it?'); }); gap(3200);
+
+  // booking
+  cue(()=> setCompose('Yes please, sometime after work this week.')); gap(1400);
+  cue(()=>{ setCompose('Message'); addMsg('me','Yes please, sometime after work this week.'); }); gap(700);
+  cue(()=> setCaption('Conversational booking','Checks in-network providers, knows María’s plan, and books it. No forms, no call center.'));
+  cue(()=> addTyping()); gap(1300);
+  cue(()=>{ rmTyping(); addMsg('ai','Found openings with <b>Dr. Elena Ruiz (Primary Care)</b> at Sanitas Doral, in-network on your Florida Blue plan. Evening slots this week:'); }); gap(700);
+  cue(()=> addNode(`<div class="card"><div class="ch">Choose a time</div><div class="slots"><div class="slot" id="s1">Wed<br>5:30 PM</div><div class="slot" id="s2">Thu<br>6:00 PM</div><div class="slot" id="s3">Fri<br>5:15 PM</div></div></div>`)); gap(1600);
+  cue(()=>{ const s=el('s2'); if(s) s.classList.add('sel'); }); gap(300);
+  cue(()=> setCompose('Thursday 6 works.')); gap(900);
+  cue(()=>{ setCompose('Message'); addMsg('me','Thursday 6 works.'); }); gap(600);
+  cue(()=> addTyping()); gap(900);
+  cue(()=>{ rmTyping(); addMsg('ai','Done. You are all set.'); }); gap(500);
+  cue(()=> addNode(`<div class="confirm-card"><div class="big">Appointment confirmed</div><div class="meta"><b>Dr. Elena Ruiz</b>, Primary Care<br>Thu, Jun 26 &middot; 6:00 PM &middot; Sanitas Doral<br>Added to your calendar, reminder set, pre-visit intake started</div></div>`)); gap(2600);
+  cue(()=> infoCard('Replaces','A <b>call-center booking</b> plus manual intake plus eligibility check, handled in 40 seconds.')); gap(1800);
+
+  // triage
+  cue(()=> setCompose('One more thing. I have had some chest tightness when I climb stairs.')); gap(1700);
+  cue(()=>{ setCompose('Message'); addMsg('me','One more thing. I have had some chest tightness when I climb stairs.'); }); gap(800);
+  cue(()=> setCaption('Clinical triage with guardrails','It follows protocol and escalates the moment it sees a red flag.'));
+  cue(()=> addTyping()); gap(1500);
+  cue(()=>{ rmTyping(); addNode(`<div class="safety-card"><div class="hd">This needs a clinician now</div><div class="bd">Chest tightness on exertion can be serious. I am not going to assess this myself. I am connecting you to a clinician at the <b>Virtual Medical Center</b> right now and flagging it as priority.</div><div class="handoff"><div class="av">CM</div><div><div class="nm">Nurse Carla M., RN</div><div class="rl">Virtual Medical Center, joining</div></div><div class="live">LIVE</div></div></div>`); }); gap(3000);
+  cue(()=> infoCard('Your top value driver','<b>Liability protection.</b> The agent stays inside protocol and hands off on red flags. Consistent, safe and auditable.')); gap(2800);
+  cue(()=> setCaption('Compliant by design','Every interaction is <b>HIPAA, SOC 2 Type II and GDPR compliant</b>, PHI-aware and fully audited.')); gap(2600);
+  cue(()=> hideCaption());
+  cue(()=> el('chatView').classList.remove('show')); gap(400);
+  cue(()=>{ el('phone').classList.remove('in'); clearInfo(); }); gap(500);
+  cue(()=> showCard(`<div class="ey">Inside mySanitas, what just happened</div><h1 style="font-size:2.8vw;max-width:82%">From <b>four separate journeys</b> to one conversation</h1><div class="bullets"><div class="b"><div class="n">Labs</div><div class="l">Pulled and explained in plain language</div></div><div class="b"><div class="n">Booking</div><div class="l">Visit booked plus intake, no call center</div></div><div class="b"><div class="n">Triage</div><div class="l">Red-flag symptoms escalated to a clinician</div></div><div class="b"><div class="n">24/7</div><div class="l">Always on, deflects Virtual Medical Center load</div></div></div>`)); gap(3400);
+  cue(()=>{ hideCard(); hideSceneTag(); }); gap(500);
+
+  // ===== SCENE 2 =====
+  cue(()=> showCard(`<div class="ey">The second opportunity</div><h1>At the bedside:<br><b>Super Scribe</b></h1><p>Across 25 hospitals, roughly 8,000 emergency patients a day, every doctor an independent consultant.</p>`)); gap(3000);
+  cue(()=> hideCard()); gap(500);
+  cue(()=>{ sceneTag('Super Scribe'); el('edScene').classList.add('in'); }); gap(800);
+  cue(()=> setCaption('Ambient documentation','The agent listens at the bedside and writes the clinical note <b>in real time</b>. The doctor just talks to the patient.')); gap(2600);
+  cue(()=> tline('doc','Dr. Patel','What brings you in today?')); gap(1700);
+  cue(()=> tline('pt','Patient','Pressure in my chest since this morning, and I feel short of breath.')); gap(2400);
+  cue(()=> nfield('Chief complaint','Chest pressure and dyspnea, onset this AM')); gap(1500);
+  cue(()=> tline('doc','Dr. Patel','Any history of heart problems? What medications are you on?')); gap(2200);
+  cue(()=> tline('pt','Patient','High blood pressure. I take lisinopril. I also started something new last week.')); gap(2600);
+  cue(()=> nfield('History and meds','HTN, lisinopril, new agent started about 1 week ago')); gap(1600);
+  cue(()=> setCaption('It connects the dots','The agent surfaces what <b>previous doctors</b> recorded, even on a patient this physician has never seen.'));
+  cue(()=> edAlert('prior','From a prior encounter','<b>Dr. Rivera, 3 days ago:</b> prescribed clopidogrel. Possible interaction with the new medication. Please verify before any new order.')); gap(3600);
+  cue(()=> setCaption('Protocol, enforced consistently','Every doctor, independent or not, is held to Keralty’s <b>clinical framework</b>. That is liability reduction.'));
+  cue(()=> edAlert('proto','Chest-pain protocol','Per Keralty ED protocol: order <b>ECG and troponin</b> and document HEART score before any disposition.')); gap(3400);
+  cue(()=> tline('doc','Dr. Patel','Let us get an ECG and troponin, and hold any new meds for now.')); gap(2400);
+  cue(()=> nfield('Assessment and plan','Possible ACS. ECG and troponin ordered, HEART score pending, new med held pending interaction check')); gap(2400);
+  cue(()=> setCaption('Signed to the EHR','The structured note flows straight into <b>eClinicalWorks</b>. Nothing retyped, nothing lost.'));
+  cue(()=> edAlert('push','Note ready to sign, eClinicalWorks','Structured H&amp;P, orders and protocol checklist complete. Zero minutes of after-hours charting.')); gap(3400);
+  cue(()=> hideCaption()); gap(400);
+  cue(()=>{ el('edScene').classList.remove('in'); hideSceneTag(); }); gap(700);
+
+  // ===== CLOSING =====
+  cue(()=> showCard(`<div class="ey">Keralty and Amigo</div><h1>One platform.<br><b>Patient to bedside.</b></h1><p>Personalized, protocol-safe, compliant AI agents across the mySanitas app and all 25 hospitals.</p><div class="bullets"><div class="b"><div class="n">80+</div><div class="l">organizations live on Amigo</div></div><div class="b"><div class="n">~6 wks</div><div class="l">to first agent live</div></div><div class="b"><div class="n">100%</div><div class="l">clinical safety performance</div></div></div>`+COBRAND)); gap(10);
+  TOTAL=TB;
+}
+
+// ---------- player (seek / pause / rewind) ----------
+let playhead=0, applied=-1, playing=false, timerId=null, lastTs=0, dragging=false, wasPlaying=false, builtOnce=false;
+
+function applyUpTo(t){ while(applied+1<cues.length && cues[applied+1].t<=t){ applied++; try{ cues[applied].fn(); }catch(e){} } }
+function updateBar(){ const p=TOTAL? playhead/TOTAL:0; el('fill').style.width=(p*100)+'%'; el('handle').style.left=(p*100)+'%'; }
+function setPlayBtn(){ el('playBtn').textContent = playing ? 'Pause' : 'Play'; }
+
+function seek(t){
+  t=Math.max(0,Math.min(TOTAL,t));
+  document.body.classList.add('seeking');
+  if(t < playhead){ resetStage(); applied=-1; }
+  applyUpTo(t);
+  void el('stage').offsetWidth;        // flush, so transitions snap to final state
+  document.body.classList.remove('seeking');
+  playhead=t; updateBar();
+}
+
+function step(){
+  if(!playing) return;
+  const now=performance.now(); const dt=Math.min(250, now-lastTs); lastTs=now;
+  playhead=Math.min(TOTAL, playhead+dt);
+  applyUpTo(playhead); updateBar();
+  if(playhead>=TOTAL){ pause(); }
+}
+
+function play(){ if(playing) return; if(playhead>=TOTAL){ seek(0); } playing=true; lastTs=performance.now(); setPlayBtn(); clearInterval(timerId); timerId=setInterval(step, 30); }
+function pause(){ playing=false; if(timerId){ clearInterval(timerId); timerId=null; } setPlayBtn(); }
+function toggle(){ playing ? pause() : play(); }
+
+function startDemo(){
+  el('startOverlay').style.display='none';
+  if(!builtOnce){ build(); builtOnce=true; }
+  document.body.classList.add('seeking'); resetStage(); document.body.classList.remove('seeking');
+  applied=-1; playhead=0; play();
+}
+
+el('startOverlay').addEventListener('click', startDemo);
+el('playBtn').addEventListener('click', toggle);
+
+const scrub=el('scrub');
+function seekToClientX(x){ const r=scrub.getBoundingClientRect(); let f=(x-r.left)/r.width; f=Math.max(0,Math.min(1,f)); seek(f*TOTAL); }
+scrub.addEventListener('pointerdown', e=>{ if(!builtOnce) return; dragging=true; wasPlaying=playing; if(playing) pause(); scrub.classList.add('active'); seekToClientX(e.clientX); try{scrub.setPointerCapture(e.pointerId);}catch(_){} });
+scrub.addEventListener('pointermove', e=>{ if(dragging) seekToClientX(e.clientX); });
+scrub.addEventListener('pointerup', ()=>{ if(!dragging) return; dragging=false; scrub.classList.remove('active'); if(wasPlaying) play(); });
+
+document.addEventListener('keydown', e=>{ if(e.code==='Space' && builtOnce){ e.preventDefault(); toggle(); } });
+</script>
+</body>
+</html>
